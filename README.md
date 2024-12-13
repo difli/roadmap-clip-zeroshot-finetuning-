@@ -1,20 +1,21 @@
-# Automating Zero-Shot Detection Fine-Tuning with SkyCLIP and Agents
+# Automating Zero-Shot Classification of Land Use from Satellite Images with SkyCLIP and Agents
 
-This guide provides a complete roadmap for fine-tuning **SkyCLIP** using **6 million satellite images** to achieve **state-of-the-art zero-shot detection**. The process incorporates **agent-based automation** for seamless data generation, training, and system optimization.
+This guide provides a roadmap for fine-tuning **SkyCLIP** to improve **zero-shot classification** of **land use categories** (e.g., agriculture, streets, vineyards, beachbars) from satellite images. The process incorporates **agent-based automation** to efficiently manage data preparation, fine-tuning, and vector search deployment.
 
 ---
 
 ## **Overview**
 
 ### **Objective**
-- Build a fine-tuned SkyCLIP model tailored to your proprietary satellite images for detecting **any user-defined category** (e.g., beachbars, vineyards).
-- Enable real-time zero-shot search using embeddings stored in **Astra DB Vector Store**.
+- Build a fine-tuned SkyCLIP model specialized for **land use classification** based on satellite images.
+- Enable robust **zero-shot classification** of new user-defined land use categories.
+- Provide scalable embedding storage and querying capabilities using **Astra DB Vector Store**.
 
 ### **Key Features**
-1. **Automated Caption Generation**: Use agents to process satellite images and generate captions with BLIP-2.
-2. **Fine-Tuning SkyCLIP**: Train the model on generated image-text pairs using contrastive learning.
-3. **Scalable Embedding Storage**: Use Astra DB Vector Store for efficient similarity search.
-4. **Zero-Shot Querying**: Provide user-defined queries with robust inference from SkyCLIP.
+1. **Automated Caption Generation**: Use agents to generate descriptive captions for satellite images.
+2. **Fine-Tuning SkyCLIP**: Train SkyCLIP on the generated captions for improved contrastive learning.
+3. **Scalable Embedding Storage**: Leverage Astra DB Vector Store for efficient similarity search.
+4. **Zero-Shot Classification**: Enable flexible, user-defined querying of land use categories.
 
 ---
 
@@ -24,10 +25,10 @@ This guide provides a complete roadmap for fine-tuning **SkyCLIP** using **6 mil
 
 | Agent Name       | Function                                                   |
 |-------------------|-----------------------------------------------------------|
-| **CaptionAgent**  | Generates captions for images using BLIP-2.               |
-| **DataAgent**     | Manages datasets, creating subsets, and organizing data.  |
-| **TrainingAgent** | Fine-tunes SkyCLIP on generated captions and images.      |
-| **EmbeddingAgent**| Computes and uploads embeddings to Astra DB.              |
+| **CaptionAgent**  | Generates captions for satellite images using BLIP-2.     |
+| **DataAgent**     | Prepares datasets, creating subsets, and organizing data. |
+| **TrainingAgent** | Fine-tunes SkyCLIP using generated image-text pairs.      |
+| **EmbeddingAgent**| Computes and stores embeddings in Astra DB.               |
 | **QueryAgent**    | Handles user queries and retrieves matching images.       |
 
 ---
@@ -36,7 +37,7 @@ This guide provides a complete roadmap for fine-tuning **SkyCLIP** using **6 mil
 
 #### **Step 1: Image Caption Generation (CaptionAgent)**
 
-The **CaptionAgent** automates the process of captioning the dataset.
+The **CaptionAgent** automates the process of generating captions for satellite images. This step provides meaningful text data for fine-tuning SkyCLIP.
 
 ```python
 from transformers import BlipProcessor, BlipForConditionalGeneration
@@ -67,7 +68,7 @@ captions = agent.generate_captions(image_paths)
 
 #### **Step 2: Data Management (DataAgent)**
 
-The **DataAgent** prepares subsets of data for training and ensures data is correctly labeled and stored.
+The **DataAgent** organizes image-caption pairs into a structured dataset for fine-tuning.
 
 ```python
 import datasets
@@ -88,7 +89,7 @@ dataset = data_agent.create_dataset(image_paths, list(captions.values()))
 
 #### **Step 3: Fine-Tuning SkyCLIP (TrainingAgent)**
 
-The **TrainingAgent** fine-tunes SkyCLIP using the dataset created by the DataAgent.
+The **TrainingAgent** fine-tunes SkyCLIP for improved land use classification using contrastive learning.
 
 ```python
 import torch
@@ -134,7 +135,7 @@ class TrainingAgent:
 
 #### **Step 4: Embedding Storage in Astra DB (EmbeddingAgent)**
 
-The **EmbeddingAgent** automates embedding generation and storage.
+The **EmbeddingAgent** generates and uploads image embeddings to Astra DB Vector Store for querying.
 
 ```python
 from astrapy import DataAPIClient
@@ -162,7 +163,7 @@ class EmbeddingAgent:
 client = DataAPIClient(api_endpoint=ASTRA_DB_API_ENDPOINT, token=ASTRA_DB_APPLICATION_TOKEN)
 database = client.get_database(ASTRA_DB_API_ENDPOINT)
 collection = database.create_collection(
-    "satellite_images",
+    "land_use_classification",
     dimension=768,
     metric=VectorMetric.COSINE
 )
@@ -174,9 +175,9 @@ embedding_agent.generate_and_store_embeddings(dataset)
 
 ---
 
-#### **Step 5: Zero-Shot Querying (QueryAgent)**
+#### **Step 5: Zero-Shot Classification (QueryAgent)**
 
-The **QueryAgent** handles user queries and retrieves matching images from Astra DB.
+The **QueryAgent** retrieves relevant images based on user-defined land use categories.
 
 ```python
 class QueryAgent:
@@ -193,7 +194,7 @@ class QueryAgent:
 
 # Example usage
 query_agent = QueryAgent(model, processor, collection)
-results = query_agent.query("Find beachbars")
+results = query_agent.query("Find vineyards")
 ```
 
 ---
@@ -205,15 +206,15 @@ results = query_agent.query("Find beachbars")
    - [SkyCLIP GitHub Repository](https://github.com/wangzhecheng/SkyScript)
 
 2. **Astra DB Vector Store**
-   - Scalable vector database for embedding storage.
+   - Scalable vector database for storing embeddings and querying.
    - [Astra DB Documentation](https://www.datastax.com/docs)
 
 3. **BLIP-2**
-   - State-of-the-art model for generating image captions.
+   - For generating captions for satellite images.
    - [BLIP-2 on Hugging Face](https://huggingface.co/Salesforce/blip-image-captioning-base)
 
 4. **Hugging Face Transformers**
-   - For model loading, fine-tuning, and embedding generation.
+   - For loading, fine-tuning, and generating embeddings.
    - [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers/)
 
 ---
@@ -226,7 +227,7 @@ results = query_agent.query("Find beachbars")
 ---
 
 ## **Key Benefits**
-- High-quality captions and embeddings tailored to your proprietary dataset.
-- Scalability with Astra DB Vector Store for storing and retrieving millions of embeddings.
-- Flexibility to add new categories with zero-shot capabilities.
+- Tailored to land use classification for high accuracy in diverse categories.
+- Scalability for embedding storage and retrieval with Astra DB.
+- Seamless zero-shot classification for new land use categories.
 ```
