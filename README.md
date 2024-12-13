@@ -202,7 +202,7 @@ results = query_agent.query("Find beachbars")
 
 1. **SkyCLIP**
    - Pre-trained on millions of satellite image-text pairs.
-   - [SkyCLIP GitHub Repository](https://github.com/ml4space/SkyCLIP)
+   - [SkyCLIP GitHub Repository](https://github.com/wangzhecheng/SkyScript)
 
 2. **Astra DB Vector Store**
    - Scalable vector database for embedding storage.
