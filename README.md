@@ -221,7 +221,7 @@ results = query_agent.query("Find beachbars")
 ## **Additional Resources**
 - [Contrastive Learning](https://lilianweng.github.io/lil-log/2021/05/31/contrastive-representation-learning.html)
 - [Zero-Shot Learning](https://paperswithcode.com/task/zero-shot-learning)
-- [SkyCLIP Paper](https://github.com/ml4space/SkyCLIP)
+- [SkyCLIP Paper](https://github.com/wangzhecheng/SkyScript)
 
 ---
 
