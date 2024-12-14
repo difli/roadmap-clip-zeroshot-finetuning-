@@ -4,36 +4,39 @@ This guide provides a roadmap for fine-tuning **SkyCLIP** to improve **zero-shot
 
 ---
 
-## **Overview**
+## **1. The Problem: Improving Zero-Shot Detection**
 
-### **Objective**
-- Build a fine-tuned SkyCLIP model specialized for **land use classification** based on satellite images.
-- Enable robust **zero-shot classification** of new user-defined land use categories.
-- Provide scalable embedding storage and querying capabilities using **Astra DB Vector Store**.
+**Zero-shot detection** means the model can identify concepts it has never seen during training, based solely on textual descriptions. For satellite imagery, this includes complex or niche queries like "beachbars," "vineyards," "solar farms," etc.
 
-### **Key Features**
-1. **Automated Caption Generation**: Use agents to generate descriptive captions for satellite images.
-2. **Fine-Tuning SkyCLIP**: Train SkyCLIP on the generated captions for improved contrastive learning.
-3. **Scalable Embedding Storage**: Leverage Astra DB Vector Store for efficient similarity search.
-4. **Zero-Shot Classification**: Enable flexible, user-defined querying of land use categories.
+SkyCLIP is already pre-trained on a large dataset of satellite images and paired textual descriptions. However:
+1. It may lack **fine-grained understanding** of niche or novel queries.
+2. It might underperform on **uncommon or ambiguous concepts** due to a limited understanding of specific land use domains.
+3. Query optimization for zero-shot tasks may require additional **prompt engineering** for better context alignment.
 
----
-
-## **Agent-Based Automation Workflow**
-
-### **1. Components of the Agent System**
-
-| Agent Name       | Function                                                   |
-|-------------------|-----------------------------------------------------------|
-| **CaptionAgent**  | Generates captions for satellite images using BLIP-2.     |
-| **DataAgent**     | Prepares datasets, creating subsets, and organizing data. |
-| **TrainingAgent** | Fine-tunes SkyCLIP using generated image-text pairs.      |
-| **EmbeddingAgent**| Computes and stores embeddings in Astra DB.               |
-| **QueryAgent**    | Handles user queries and retrieves matching images.       |
+The goal of this roadmap is to enhance SkyCLIP’s performance for **land use classification** by:
+- Fine-tuning it with domain-specific data.
+- Building a system that supports **zero-shot detection** for novel queries.
+- Enabling **continuous learning** by incorporating user feedback.
 
 ---
 
-### **2. Workflow**
+## **2. Agent-Based Automation Workflow**
+
+### **A. Components of the Agent System**
+
+| **Agent Name**       | **Function**                                                   |
+|-----------------------|---------------------------------------------------------------|
+| **CaptionAgent**      | Generates captions for satellite images using BLIP-2.         |
+| **DataAgent**         | Prepares datasets, creating subsets, and organizing data.      |
+| **TrainingAgent**     | Fine-tunes SkyCLIP using generated image-text pairs.           |
+| **EmbeddingAgent**    | Computes and stores embeddings in Astra DB.                   |
+| **QueryAgent**        | Handles user queries and retrieves matching images.           |
+| **ActiveLearningAgent** | Continuously refines the model by collecting user feedback.  |
+| **PromptAgent**       | Generates optimized prompts for user queries for zero-shot tasks. |
+
+---
+
+### **B. Workflow**
 
 #### **Step 1: Image Caption Generation (CaptionAgent)**
 
@@ -57,11 +60,6 @@ class CaptionAgent:
             output = self.model.generate(**inputs)
             captions[image_path] = self.processor.decode(output[0], skip_special_tokens=True)
         return captions
-
-# Example usage
-image_paths = ["/path/to/image1.jpg", "/path/to/image2.jpg"]
-agent = CaptionAgent()
-captions = agent.generate_captions(image_paths)
 ```
 
 ---
@@ -79,15 +77,33 @@ class DataAgent:
             "image": image_paths,
             "text": captions
         })
-
-# Example usage
-data_agent = DataAgent()
-dataset = data_agent.create_dataset(image_paths, list(captions.values()))
 ```
 
 ---
 
-#### **Step 3: Fine-Tuning SkyCLIP (TrainingAgent)**
+#### **Step 3: Fine-Tune with Diverse Text Prompts**
+
+This step involves **fine-tuning SkyCLIP** with a set of **diverse text prompts** to improve its ability to handle new and novel land use categories.
+
+**Approach**:
+1. Use **text-to-image contrastive learning** to align visual embeddings with textual descriptions.
+2. Generate synthetic text examples or use tools like **CLIP-style prompting** to define novel land use categories.
+
+**Example Prompts**:
+- "A dense vineyard in the countryside."
+- "A small beachbar with colorful umbrellas."
+- "A solar farm with rows of solar panels in a desert."
+
+#### **What is a CLIP-Style Prompting Tool?**
+CLIP-style prompting is a technique used to define **contextual descriptions** for categories that are new or poorly represented in the training data. While no specific **CLIP-prompting tool** exists as a standalone, this concept can be implemented with libraries like **OpenAI's CLIP** or **Hugging Face Transformers** by:
+- Generating textual templates (e.g., "A photo of {query}.")
+- Testing multiple variations to find the most effective description for aligning with embeddings.
+
+For a CLIP-style prompting implementation, the **PromptAgent** (described below) can automatically generate these prompts.
+
+---
+
+#### **Step 4: Fine-Tuning SkyCLIP (TrainingAgent)**
 
 The **TrainingAgent** fine-tunes SkyCLIP for improved land use classification using contrastive learning.
 
@@ -133,51 +149,42 @@ class TrainingAgent:
 
 ---
 
-#### **Step 4: Embedding Storage in Astra DB (EmbeddingAgent)**
+#### **Step 5: Continuous Learning (ActiveLearningAgent)**
 
-The **EmbeddingAgent** generates and uploads image embeddings to Astra DB Vector Store for querying.
+The **ActiveLearningAgent** collects user feedback to improve the model iteratively.
+
+1. **Feedback Collection**: Capture user feedback on retrieved results.
+2. **Dataset Expansion**: Add new labeled examples based on feedback.
+3. **Model Fine-Tuning**: Update the model using the expanded dataset.
+
+---
+
+#### **Step 6: Prompt Engineering for Zero-Shot Detection (PromptAgent)**
+
+The **PromptAgent** enhances zero-shot inference by generating optimized prompts for user queries.
 
 ```python
-from astrapy import DataAPIClient
-
-class EmbeddingAgent:
-    def __init__(self, model, processor, collection):
-        self.model = model
-        self.processor = processor
-        self.collection = collection
-
-    def generate_and_store_embeddings(self, dataset):
-        for idx, record in enumerate(dataset):
-            image = record["image"]
-            inputs = self.processor(images=image, return_tensors="pt")
-            vector = self.model.get_image_features(**inputs).detach().cpu().numpy().tolist()
-
-            # Store in Astra DB
-            self.collection.insert_one({
-                "_id": idx,
-                "$vector": vector,
-                "metadata": {"image_path": record["image"]}
-            })
-
-# Astra DB setup
-client = DataAPIClient(api_endpoint=ASTRA_DB_API_ENDPOINT, token=ASTRA_DB_APPLICATION_TOKEN)
-database = client.get_database(ASTRA_DB_API_ENDPOINT)
-collection = database.create_collection(
-    "land_use_classification",
-    dimension=768,
-    metric=VectorMetric.COSINE
-)
+class PromptAgent:
+    def generate_prompt(self, query):
+        templates = [
+            "Satellite image showing {query}.",
+            "Aerial view of {query}."
+        ]
+        return [template.format(query=query) for template in templates]
 
 # Example usage
-embedding_agent = EmbeddingAgent(model, processor, collection)
-embedding_agent.generate_and_store_embeddings(dataset)
+agent = PromptAgent()
+prompts = agent.generate_prompt("vineyards")
 ```
 
 ---
 
-#### **Step 5: Zero-Shot Classification (QueryAgent)**
+#### **Step 7: Build and Test a Zero-Shot Inference Pipeline**
 
-The **QueryAgent** retrieves relevant images based on user-defined land use categories.
+Combine the agents into a cohesive pipeline:
+1. **Query Processing**: Use the PromptAgent to optimize user queries.
+2. **Vector Matching**: Query Astra DB for similar embeddings.
+3. **Result Display**: Present results to the user in a UI (e.g., Gradio).
 
 ```python
 class QueryAgent:
@@ -191,10 +198,6 @@ class QueryAgent:
         query_vector = self.model.get_text_features(**inputs).detach().cpu().numpy().tolist()
         results = self.collection.find(sort={"$vector": query_vector}, limit=limit)
         return results
-
-# Example usage
-query_agent = QueryAgent(model, processor, collection)
-results = query_agent.query("Find vineyards")
 ```
 
 ---
@@ -213,21 +216,14 @@ results = query_agent.query("Find vineyards")
    - For generating captions for satellite images.
    - [BLIP-2 on Hugging Face](https://huggingface.co/Salesforce/blip-image-captioning-base)
 
-4. **Hugging Face Transformers**
-   - For loading, fine-tuning, and generating embeddings.
-   - [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers/)
-
----
-
-## **Additional Resources**
-- [Contrastive Learning](https://lilianweng.github.io/lil-log/2021/05/31/contrastive-representation-learning.html)
-- [Zero-Shot Learning](https://paperswithcode.com/task/zero-shot-learning)
-- [SkyCLIP Paper](https://github.com/wangzhecheng/SkyScript)
+4. **Prompt Engineering**
+   - Generate optimized prompts for better zero-shot classification.
+   - Example implementation in the PromptAgent section above.
 
 ---
 
 ## **Key Benefits**
 - Tailored to land use classification for high accuracy in diverse categories.
-- Scalability for embedding storage and retrieval with Astra DB.
+- Scalable embedding storage and retrieval with Astra DB.
+- Continuous learning with user feedback to improve classification.
 - Seamless zero-shot classification for new land use categories.
-```
